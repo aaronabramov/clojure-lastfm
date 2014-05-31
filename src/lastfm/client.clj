@@ -4,7 +4,6 @@
     [clojure.data.json :as json]
     [clojure.walk :refer [stringify-keys]]))
 
-
 (def ^:private base-url "http://ws.audioscrobbler.com/2.0/")
 
 (defn ^:private md5
@@ -19,17 +18,16 @@
          16))) ; Use base16 i.e. hex
 
 (defn signed-params [query-params api-secret]
-  (let [sorted-param-string (reduce str (flatten (seq (into (sorted-map) (stringify-keys query-params)))))
-        ;; _ (println (str sorted-param-string))
-        signature (md5 (str sorted-param-string api-secret))]
+  (let [params-wo-format (dissoc query-params :format) ;; lastfm api bug. it doesn't include format params in signature
+        sorted-param-string (reduce str (flatten (seq (into (sorted-map) (stringify-keys params-wo-format)))))
+        res-str (str sorted-param-string api-secret)
+        signature (md5 res-str)]
     (assoc query-params :api_sig signature)))
-
-(defn get-json-body [res]
-  (json/read-str (:body res)))
 
 (defn make-req [{:keys [method params api-secret]}]
   (let [query-params (assoc params :method method :format "json")
         p (promise)]
+    (println (signed-params query-params api-secret))
     (http/get base-url {:query-params (signed-params query-params api-secret)}
               (fn [{:keys [body error]}]
                 (if error
@@ -41,8 +39,9 @@
     (let [res @(make-req {:method "auth.getToken" :params {:api_key api-key} :api-secret api-secret})]
       (get-in res [:body "token"])))
 
-(defn get-session [api-key]
-  (future (get-json-body @(make-req "auth.getSession" {:api_key api-key}))))
+(defn get-session [api-key api-secret token]
+  (let [res @(make-req {:method "auth.getSession" :params {:api_key api-key :token token} :api-secret api-secret})]
+    res))
 
-;; (defn get-auth-url [api-key]
-;;   (future (str "http://www.last.fm/api/auth/?api_key=" api-key "&token=" @(get-token))))
+(defn get-auth-url [api-key token]
+  (str "http://www.last.fm/api/auth/?api_key=" api-key "&token=" token))
