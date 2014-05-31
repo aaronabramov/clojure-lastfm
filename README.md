@@ -1,10 +1,13 @@
 # clojure-lastfm
 
-A Clojure library designed to ... well, that part is up to you.
+```clojure
+(def api-key "1234567890")
 
-## Usage
+(def api-secret "0987654321")
 
-FIXME
+(get-token api-key api-secret)
+=> "a939faf0af04a0ofe0afo0eifa0oe"
+```
 
 ## License
 
